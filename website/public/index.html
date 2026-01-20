@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en" ng-app="mongoApp">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MongoDB User Management Console</title>
+  <link rel="icon" href="/assets/logo.svg" />
+  <!-- AngularJS 1.x CDN -->
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body ng-controller="MainCtrl as vm" ng-cloak>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand-wrap">
+        <img src="/assets/logo.svg" alt="MongoDB Logo" class="logo" onerror="this.style.display='none'" />
+        <h1 class="brand">MongoDB User Management</h1>
+      </div>
+      <nav>
+        <a href="#auth" ng-if="!vm.isAuthenticated">Login</a>
+        <a href="#mongo" ng-if="vm.isAuthenticated">MongoDB</a>
+        <a href="#" ng-if="vm.isAuthenticated" ng-click="vm.logout()">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Toast Notifications -->
+  <div class="toast-container">
+    <div ng-repeat="toast in vm.toasts" class="toast" ng-class="toast.type">
+      {{ toast.message }}
+      <button class="toast-close" ng-click="vm.removeToast($index)">&times;</button>
+    </div>
+  </div>
+
+  <main class="container">
+    <!-- Authentication Section -->
+    <section id="auth" class="section glass" ng-controller="AuthCtrl as auth" ng-cloak ng-if="!vm.isAuthenticated">
+      <h2>Login / Sign up</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Sign up</h3>
+          <form ng-submit="auth.doSignup()" novalidate>
+            <label>Email
+              <input type="email" ng-model="auth.signupForm.email" required />
+            </label>
+            <label>Username
+              <input type="text" ng-model="auth.signupForm.username" required minlength="3" maxlength="30" />
+            </label>
+            <label>Password
+              <input type="password" ng-model="auth.signupForm.password" required minlength="8" />
+            </label>
+            <button class="btn btn-gradient" type="submit">Create account</button>
+          </form>
+        </div>
+        <div class="card">
+          <h3>Login</h3>
+          <form ng-submit="auth.doLogin()" novalidate>
+            <label>Email or Username
+              <input type="text" ng-model="auth.loginForm.emailOrUsername" required />
+            </label>
+            <label>Password
+              <input type="password" ng-model="auth.loginForm.password" required />
+            </label>
+            <button class="btn btn-outline" type="submit">Login</button>
+          </form>
+        </div>
+      </div>
+      <p class="error" ng-if="auth.state.error" ng-bind="auth.state.error"></p>
+      <p class="success" ng-if="auth.state.message" ng-bind="auth.state.message"></p>
+    </section>
+
+    <!-- MongoDB Management Section -->
+    <section id="mongo" class="section glass" ng-controller="MongoCtrl as mongo" ng-cloak ng-if="vm.isAuthenticated">
+      <h2>MongoDB User Management</h2>
+      
+      <!-- Connection Section -->
+      <div class="mongo-connection">
+        <h3>MongoDB Connection</h3>
+        <div class="connection-status" ng-class="{'connected': mongo.mongoState.connected, 'disconnected': !mongo.mongoState.connected}">
+          <span class="status-indicator"></span>
+          {{ mongo.mongoState.message }}
+        </div>
+        <div ng-if="!mongo.mongoState.connected">
+          <form ng-submit="mongo.connectToMongo()" novalidate>
+            <label>
+              MongoDB Connection String
+              <input type="text" ng-model="mongo.mongoForm.connectionString" 
+                     placeholder="mongodb://localhost:27017" required />
+            </label>
+            <button class="btn btn-gradient" type="submit">Connect</button>
+          </form>
+        </div>
+        <div ng-if="mongo.mongoState.connected">
+          <button class="btn btn-outline" ng-click="mongo.disconnectFromMongo()">Disconnect</button>
+        </div>
+      </div>
+
+      <!-- User Management Section -->
+      <div ng-if="mongo.mongoState.connected" class="mongo-users">
+        <div class="users-header">
+          <h3>MongoDB Users</h3>
+          <div class="header-buttons">
+            <button class="btn btn-outline" ng-click="mongo.showRoleManager = !mongo.showRoleManager">
+              {{ mongo.showRoleManager ? 'Hide Roles' : 'Manage Roles' }}
+            </button>
+            <button class="btn btn-gradient" ng-click="mongo.showCreateUser = !mongo.showCreateUser">
+              {{ mongo.showCreateUser ? 'Cancel' : 'Create User' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Role Management Section -->
+        <div ng-if="mongo.showRoleManager" class="role-manager">
+          <h4>Role Management</h4>
+          <div class="role-actions">
+            <button class="btn btn-gradient" ng-click="mongo.showCreateRole = !mongo.showCreateRole">
+              {{ mongo.showCreateRole ? 'Cancel' : 'Create Role' }}
+            </button>
+            <button class="btn btn-outline" ng-click="mongo.loadRoles()">Refresh Roles</button>
+          </div>
+          
+          <!-- Database Selection -->
+          <div class="database-selector">
+            <label>
+              Select Database for Roles
+              <select ng-model="mongo.selectedDatabase" ng-change="mongo.loadRoles()">
+                <option value="admin">admin</option>
+                <option value="" ng-repeat="db in mongo.databases" value="{{ db }}">{{ db }}</option>
+              </select>
+            </label>
+            <button class="btn btn-outline" ng-click="mongo.loadDatabases()">Refresh Databases</button>
+          </div>
+          
+          <!-- Create Role Form -->
+          <div ng-if="mongo.showCreateRole" class="create-role-form">
+            <h5>Create Custom Role in {{ mongo.selectedDatabase || 'admin' }}</h5>
+            <form ng-submit="mongo.createRole()" novalidate>
+              <label>
+                Role Name
+                <input type="text" ng-model="mongo.roleForm.roleName" required />
+              </label>
+              <label>
+                Privileges (JSON format)
+                <textarea ng-model="mongo.roleForm.privileges" rows="4" 
+                         placeholder='[{"resource":{"db":"mydb","collection":""},"actions":["find","insert"]}]' required></textarea>
+              </label>
+              <label>
+                Inherited Roles (comma-separated)
+                <input type="text" ng-model="mongo.roleForm.inheritedRoles" 
+                       placeholder="read,readWrite" />
+              </label>
+              <div class="form-actions">
+                <button class="btn btn-gradient" type="submit">Create Role</button>
+                <button class="btn btn-outline" type="button" ng-click="mongo.cancelCreateRole()">Cancel</button>
+              </div>
+            </form>
+          </div>
+          
+          <!-- Roles List -->
+          <div class="roles-list">
+            <h5>Roles in {{ mongo.currentRoleDatabase || 'admin' }} ({{ mongo.mongoRoles.length }})</h5>
+            <div ng-if="mongo.mongoRoles.length === 0" class="no-roles">
+              <p>No custom roles found in this database.</p>
+            </div>
+            <div ng-repeat="role in mongo.mongoRoles" class="role-card">
+              <div class="role-info">
+                <h5>{{ role.role }}</h5>
+                <p><strong>Database:</strong> {{ role.db }}</p>
+                <p ng-if="role.inheritedRoles && role.inheritedRoles.length"><strong>Inherits:</strong> {{ role.inheritedRoles.map(r => r.role).join(', ') }}</p>
+                <p ng-if="role.privileges && role.privileges.length"><strong>Privileges:</strong> {{ role.privileges.length }} defined</p>
+              </div>
+              <div class="role-actions">
+                <button class="btn btn-danger" ng-click="mongo.deleteRole(role.role)" 
+                        ng-if="!mongo.isBuiltInRole(role.role)">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Create User Form -->
+        <div ng-if="mongo.showCreateUser" class="create-user-form">
+          <h4>Create New User</h4>
+          <form ng-submit="mongo.createUser()" novalidate>
+            <div class="form-row">
+              <label>
+                Username
+                <input type="text" ng-model="mongo.userForm.username" required />
+              </label>
+              <label>
+                Password
+                <input type="password" ng-model="mongo.userForm.password" required />
+              </label>
+            </div>
+            <label>
+              Database
+              <input type="text" ng-model="mongo.userForm.database" 
+                     placeholder="admin" value="admin" />
+            </label>
+            <label>
+              Roles (comma-separated)
+              <input type="text" ng-model="mongo.userForm.roles" 
+                     placeholder="readWrite,dbAdmin" required />
+            </label>
+            <div class="form-actions">
+              <button class="btn btn-gradient" type="submit">Create User</button>
+              <button class="btn btn-outline" type="button" ng-click="mongo.cancelCreateUser()">Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Users List -->
+        <div class="users-list">
+          <div class="users-controls">
+            <input type="text" ng-model="mongo.userSearch" placeholder="Search users..." class="search-input" />
+            <div class="pagination-info">
+              Showing {{ mongo.getPaginatedUsers().length }} of {{ mongo.getFilteredUsers().length }} users
+            </div>
+          </div>
+          
+          <div class="pagination" ng-if="mongo.getTotalPages() > 1">
+            <button class="btn btn-outline" ng-click="mongo.prevPage()" ng-disabled="mongo.currentPage === 1">Previous</button>
+            <span class="page-info">Page {{ mongo.currentPage }} of {{ mongo.getTotalPages() }}</span>
+            <button class="btn btn-outline" ng-click="mongo.nextPage()" ng-disabled="mongo.currentPage === mongo.getTotalPages()">Next</button>
+          </div>
+          
+          <div ng-if="mongo.getFilteredUsers().length === 0" class="no-users">
+            <p ng-if="mongo.mongoUsers.length === 0">No users found. Create your first user above.</p>
+            <p ng-if="mongo.mongoUsers.length > 0">No users match your search.</p>
+          </div>
+          
+          <div ng-repeat="user in mongo.getPaginatedUsers()" class="user-card">
+            <div class="user-info">
+              <h4>{{ user.user }}</h4>
+              <p><strong>Roles:</strong> {{ mongo.getRoleNames(user.roles) }}</p>
+              <p><strong>Database:</strong> {{ user.db }}</p>
+            </div>
+            <div class="user-actions">
+              <button class="btn btn-outline" ng-click="mongo.editUser(user)">Edit</button>
+              <button class="btn btn-outline" ng-click="mongo.manageUserRoles(user)">Manage Roles</button>
+              <button class="btn btn-outline" ng-click="mongo.renameUser(user)">Rename</button>
+              <button class="btn btn-danger" ng-click="mongo.deleteUser(user)">Delete</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit User Modal -->
+      <div ng-if="mongo.editingUser" class="modal-overlay" ng-click="mongo.cancelEditUser()">
+        <div class="modal" ng-click="$event.stopPropagation()">
+          <h3>Edit User: {{ mongo.editingUser.user }}</h3>
+          <form ng-submit="mongo.updateUser()" novalidate>
+            <label>
+              New Password (leave blank to keep current)
+              <input type="password" ng-model="mongo.editForm.password" />
+            </label>
+            <label>
+              Database
+              <input type="text" ng-model="mongo.editForm.database" 
+                     ng-init="mongo.editForm.database = mongo.editingUser.db" required />
+            </label>
+            <label>
+              Roles (comma-separated)
+              <input type="text" ng-model="mongo.editForm.roles" 
+                     ng-init="mongo.editForm.roles = mongo.getRoleNames(mongo.editingUser.roles)" required />
+            </label>
+            <div class="form-actions">
+              <button class="btn btn-gradient" type="submit">Update User</button>
+              <button class="btn btn-outline" type="button" ng-click="mongo.cancelEditUser()">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Manage User Roles Modal -->
+      <div ng-if="mongo.managingUserRoles" class="modal-overlay" ng-click="mongo.cancelManageUserRoles()">
+        <div class="modal" ng-click="$event.stopPropagation()">
+          <h3>Manage Roles: {{ mongo.managingUserRoles.user }}</h3>
+          <div class="role-management">
+            <h4>Grant New Roles</h4>
+            <form ng-submit="mongo.grantRoles()" novalidate>
+              <label>
+                Database
+                <input type="text" ng-model="mongo.roleManagementForm.database" placeholder="admin" required />
+              </label>
+              <label>
+                Select Roles
+                <div class="role-selector">
+                  <select ng-model="mongo.selectedRole" ng-change="mongo.addSelectedRole()">
+                    <option value="">-- Select a role --</option>
+                    <optgroup label="Database Roles">
+                      <option value="read">read</option>
+                      <option value="readWrite">readWrite</option>
+                      <option value="dbAdmin">dbAdmin</option>
+                      <option value="dbOwner">dbOwner</option>
+                      <option value="userAdmin">userAdmin</option>
+                    </optgroup>
+                    <optgroup label="Cluster Roles">
+                      <option value="clusterAdmin">clusterAdmin</option>
+                      <option value="clusterManager">clusterManager</option>
+                      <option value="clusterMonitor">clusterMonitor</option>
+                      <option value="backup">backup</option>
+                      <option value="restore">restore</option>
+                    </optgroup>
+                    <optgroup label="Any Database Roles">
+                      <option value="readAnyDatabase">readAnyDatabase</option>
+                      <option value="readWriteAnyDatabase">readWriteAnyDatabase</option>
+                      <option value="userAdminAnyDatabase">userAdminAnyDatabase</option>
+                      <option value="dbAdminAnyDatabase">dbAdminAnyDatabase</option>
+                    </optgroup>
+                    <optgroup label="Super User">
+                      <option value="root">root</option>
+                    </optgroup>
+                  </select>
+                </div>
+                <div class="selected-roles">
+                  <span ng-repeat="role in mongo.roleManagementForm.selectedRoles" class="role-tag">
+                    {{ role }} <button type="button" ng-click="mongo.removeSelectedRole($index)">&times;</button>
+                  </span>
+                </div>
+              </label>
+              <button class="btn btn-gradient" type="submit" ng-disabled="!mongo.roleManagementForm.selectedRoles.length">Grant Roles</button>
+            </form>
+            
+            <h4>Current Roles</h4>
+            <div ng-if="mongo.managingUserRoles.roles.length === 0">
+              <p>No roles assigned</p>
+            </div>
+            <div ng-repeat="role in mongo.managingUserRoles.roles" class="role-item">
+              <span>{{ role.role }} ({{ role.db }})</span>
+              <button class="btn btn-danger btn-sm" ng-click="mongo.revokeRole(role)">Revoke</button>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-outline" type="button" ng-click="mongo.cancelManageUserRoles()">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delete User Confirmation Modal -->
+      <div ng-if="mongo.deletingUser" class="modal-overlay" ng-click="mongo.cancelDeleteUser()">
+        <div class="modal delete-modal" ng-click="$event.stopPropagation()">
+          <h3>⚠️ Delete User: {{ mongo.deletingUser.user }}</h3>
+          <div class="delete-warning">
+            <p><strong>This action cannot be undone!</strong></p>
+            <p>This will permanently delete the user <strong>{{ mongo.deletingUser.user }}</strong> and all associated permissions.</p>
+            <p>To confirm deletion, please type the username exactly as shown:</p>
+            <div class="username-display">{{ mongo.deletingUser.user }}</div>
+          </div>
+          <form ng-submit="mongo.confirmDeleteUser()" novalidate>
+            <label>
+              Type username to confirm:
+              <input type="text" ng-model="mongo.deleteForm.confirmUsername" 
+                     placeholder="Enter username here" required autocomplete="off" />
+            </label>
+            <div class="form-actions">
+              <button class="btn btn-danger" type="submit" 
+                      ng-disabled="mongo.deleteForm.confirmUsername !== mongo.deletingUser.user">
+                Delete User Permanently
+              </button>
+              <button class="btn btn-outline" type="button" ng-click="mongo.cancelDeleteUser()">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Rename User Modal -->
+      <div ng-if="mongo.renamingUser" class="modal-overlay" ng-click="mongo.cancelRenameUser()">
+        <div class="modal" ng-click="$event.stopPropagation()">
+          <h3>Rename User: {{ mongo.renamingUser.user }}</h3>
+          <form ng-submit="mongo.updateUsername()" novalidate>
+            <label>
+              New Username
+              <input type="text" ng-model="mongo.renameForm.newUsername" required />
+            </label>
+            <div class="form-actions">
+              <button class="btn btn-gradient" type="submit">Rename User</button>
+              <button class="btn btn-outline" type="button" ng-click="mongo.cancelRenameUser()">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+
+    </section>
+  </main>
+
+  <footer class="site-footer">© {{ vm.year }} MongoDB User Management Console</footer>
+
+  <script>
+    // MongoDB User Management Application
+    angular.module('mongoApp', [])
+      .controller('MainCtrl', function($http, $timeout, $rootScope) {
+        const vm = this;
+        vm.year = new Date().getFullYear();
+        vm.isAuthenticated = false;
+        vm.toasts = [];
+        
+        vm.showToast = function(message, type = 'success') {
+          const toast = { message, type };
+          vm.toasts.push(toast);
+          $timeout(() => {
+            const index = vm.toasts.indexOf(toast);
+            if (index > -1) vm.toasts.splice(index, 1);
+          }, 4000);
+        };
+        
+        vm.removeToast = function(index) {
+          vm.toasts.splice(index, 1);
+        };
+        
+        // Share toast function globally
+        $rootScope.showToast = vm.showToast;
+        
+        // Check authentication status
+        vm.checkAuth = function() {
+          $http.get('/api/me')
+            .then(response => {
+              vm.isAuthenticated = true;
+            })
+            .catch(error => {
+              vm.isAuthenticated = false;
+            });
+        };
+        
+        vm.logout = function() {
+          $http.post('/api/auth/logout')
+            .then(() => {
+              vm.isAuthenticated = false;
+            });
+        };
+        
+        // Initialize
+        vm.checkAuth();
+      })
+      .controller('AuthCtrl', function($http, $timeout) {
+        const auth = this;
+        auth.signupForm = { email: '', username: '', password: '' };
+        auth.loginForm = { emailOrUsername: '', password: '' };
+        auth.state = { error: null, message: null };
+
+        auth.doSignup = async function(){
+          auth.state.error = null; 
+          auth.state.message = null;
+          try{
+            await $http.post('/api/auth/signup', auth.signupForm);
+            auth.state.message = 'Sign up successful. Please login.';
+            auth.signupForm = { email: '', username: '', password: '' };
+          }catch(err){
+            auth.state.error = (err.data && err.data.error) || 'Signup failed';
+          }
+        };
+
+        auth.doLogin = async function(){
+          auth.state.error = null; 
+          auth.state.message = null;
+          try{
+            const res = await $http.post('/api/auth/login', auth.loginForm);
+            auth.state.me = res.data.user;
+            auth.loginForm = { emailOrUsername: '', password: '' };
+            // Refresh the page to update authentication status
+            window.location.reload();
+          }catch(err){
+            auth.state.error = (err.data && err.data.error) || 'Login failed';
+          }
+        };
+      })
+      .controller('MongoCtrl', function($http, $timeout, $scope, $rootScope) {
+        const mongo = this;
+        
+        // MongoDB state
+        mongo.mongoState = {
+          connected: false,
+          message: 'Not connected',
+          error: null,
+          success: null
+        };
+        
+        mongo.mongoForm = {
+          connectionString: 'mongodb://localhost:27017'
+        };
+        
+        mongo.mongoUsers = [];
+        mongo.mongoRoles = [];
+        mongo.databases = [];
+        mongo.selectedDatabase = 'admin';
+        mongo.currentRoleDatabase = 'admin';
+        mongo.showCreateUser = false;
+        mongo.showRoleManager = false;
+        mongo.showCreateRole = false;
+        mongo.editingUser = null;
+        mongo.renamingUser = null;
+        mongo.managingUserRoles = null;
+        mongo.deletingUser = null;
+        mongo.editForm = {};
+        mongo.renameForm = {};
+        mongo.roleManagementForm = {};
+        mongo.deleteForm = {};
+        mongo.userSearch = '';
+        mongo.currentPage = 1;
+        mongo.usersPerPage = 10;
+        mongo.selectedRole = '';
+        
+        mongo.userForm = {
+          username: '',
+          password: '',
+          database: 'admin',
+          roles: ''
+        };
+        
+        mongo.roleForm = {
+          roleName: '',
+          privileges: '',
+          inheritedRoles: '',
+          database: 'admin'
+        };
+        
+        // Helpers
+        mongo.getRoleNames = function(roles) {
+          if (!roles || !roles.length) return '';
+          // roles can be [{role, db}] or strings; normalize
+          return roles.map(function(r){ return (r && r.role) ? r.role : r; }).join(', ');
+        };
+        
+        mongo.isBuiltInRole = function(roleName) {
+          const builtInRoles = ['read', 'readWrite', 'dbAdmin', 'dbOwner', 'userAdmin', 'clusterAdmin', 'clusterManager', 'clusterMonitor', 'hostManager', 'backup', 'restore', 'readAnyDatabase', 'readWriteAnyDatabase', 'userAdminAnyDatabase', 'dbAdminAnyDatabase', 'root'];
+          return builtInRoles.includes(roleName);
+        };
+
+        // Check MongoDB connection status
+        mongo.checkMongoStatus = function() {
+          $http.get('/api/mongo/status')
+            .then(response => {
+              mongo.mongoState.connected = response.data.connected;
+              mongo.mongoState.message = response.data.message;
+              if (mongo.mongoState.connected) {
+                mongo.loadUsers();
+                mongo.loadDatabases();
+                mongo.loadRoles();
+              }
+            })
+            .catch(error => {
+              console.error('Error checking MongoDB status:', error);
+            });
+        };
+        
+        // Connect to MongoDB
+        mongo.connectToMongo = function() {
+          mongo.mongoState.error = null;
+          mongo.mongoState.success = null;
+          
+          $http.post('/api/mongo/connect', {
+            connectionString: mongo.mongoForm.connectionString
+          })
+          .then(response => {
+            if (response.data.success) {
+              mongo.mongoState.connected = true;
+              mongo.mongoState.message = response.data.message;
+              mongo.mongoState.success = response.data.message;
+              mongo.loadUsers();
+              mongo.loadDatabases();
+              mongo.loadRoles();
+            } else {
+              mongo.mongoState.error = response.data.message;
+            }
+          })
+          .catch(error => {
+            mongo.mongoState.error = error.data?.error || 'Connection failed';
+          });
+        };
+        
+        // Disconnect from MongoDB
+        mongo.disconnectFromMongo = function() {
+          $http.post('/api/mongo/disconnect')
+            .then(response => {
+              mongo.mongoState.connected = false;
+              mongo.mongoState.message = 'Not connected';
+              mongo.mongoUsers = [];
+              mongo.mongoRoles = [];
+              mongo.databases = [];
+              mongo.mongoState.success = response.data.message;
+            })
+            .catch(error => {
+              mongo.mongoState.error = error.data?.error || 'Disconnect failed';
+            });
+        };
+        
+        // Load MongoDB users
+        mongo.loadUsers = function() {
+          $http.get('/api/mongo/users')
+            .then(response => {
+              mongo.mongoUsers = response.data.users || [];
+            })
+            .catch(error => {
+              mongo.mongoState.error = error.data?.error || 'Failed to load users';
+            });
+        };
+        
+        // Create new user
+        mongo.createUser = function() {
+          const database = mongo.userForm.database || 'admin';
+          const roles = mongo.userForm.roles.split(',').map(r => ({ role: r.trim(), db: database }));
+          
+          $http.post('/api/mongo/users', {
+            username: mongo.userForm.username,
+            password: mongo.userForm.password,
+            roles: roles
+          })
+          .then(response => {
+            $timeout(() => {
+              $rootScope.showToast(response.data.message, 'success');
+              mongo.cancelCreateUser();
+              mongo.loadUsers();
+            });
+          })
+          .catch(error => {
+            $timeout(() => {
+              $rootScope.showToast(error.data?.error || 'Failed to create user', 'error');
+            });
+          });
+        };
+        
+        // Cancel create user
+        mongo.cancelCreateUser = function() {
+          mongo.showCreateUser = false;
+          mongo.userForm = { username: '', password: '', database: 'admin', roles: '' };
+        };
+        
+        // Edit user
+        mongo.editUser = function(user) {
+          mongo.editingUser = user;
+          mongo.editForm = {
+            password: '',
+            roles: user.roles.map(r => r.role).join(', ')
+          };
+        };
+        
+        // Update user
+        mongo.updateUser = function() {
+          const database = mongo.editForm.database || 'admin';
+          const roles = mongo.editForm.roles.split(',').map(r => ({ role: r.trim(), db: database }));
+          const updateData = { roles: roles };
+          if (mongo.editForm.password) {
+            updateData.password = mongo.editForm.password;
+          }
+          
+          $http.put('/api/mongo/users/' + mongo.editingUser.user, updateData)
+            .then(response => {
+              $timeout(() => {
+                $rootScope.showToast(response.data.message, 'success');
+                mongo.cancelEditUser();
+                mongo.loadUsers();
+              });
+            })
+            .catch(error => {
+              $timeout(() => {
+                $rootScope.showToast(error.data?.error || 'Failed to update user', 'error');
+              });
+            });
+        };
+        
+        // Cancel edit user
+        mongo.cancelEditUser = function() {
+          mongo.editingUser = null;
+          mongo.editForm = {};
+        };
+        
+        // Delete user
+        mongo.deleteUser = function(user) {
+          mongo.deletingUser = user;
+          mongo.deleteForm = { confirmUsername: '' };
+        };
+        
+        mongo.confirmDeleteUser = function() {
+          if (mongo.deleteForm.confirmUsername !== mongo.deletingUser.user) {
+            $rootScope.showToast('Username does not match. Please type the exact username to confirm deletion.', 'error');
+            return;
+          }
+          
+          $http.delete('/api/mongo/users/' + mongo.deletingUser.user)
+            .then(response => {
+              $timeout(() => {
+                $rootScope.showToast(response.data.message, 'success');
+                mongo.cancelDeleteUser();
+                mongo.loadUsers();
+              });
+            })
+            .catch(error => {
+              $timeout(() => {
+                $rootScope.showToast(error.data?.error || 'Failed to delete user', 'error');
+              });
+            });
+        };
+        
+        mongo.cancelDeleteUser = function() {
+          mongo.deletingUser = null;
+          mongo.deleteForm = {};
+        };
+        
+        // Rename user functions
+        mongo.renameUser = function(user) {
+          mongo.renamingUser = user;
+          mongo.renameForm = { newUsername: '' };
+        };
+        
+        mongo.updateUsername = function() {
+          $http.patch('/api/mongo/users/' + mongo.renamingUser.user + '/rename', {
+            newUsername: mongo.renameForm.newUsername
+          })
+          .then(response => {
+            $timeout(() => {
+              $rootScope.showToast(response.data.message, 'success');
+              mongo.cancelRenameUser();
+              mongo.loadUsers();
+            });
+          })
+          .catch(error => {
+            $timeout(() => {
+              $rootScope.showToast(error.data?.error || 'Failed to rename user', 'error');
+            });
+          });
+        };
+        
+        mongo.cancelRenameUser = function() {
+          mongo.renamingUser = null;
+          mongo.renameForm = {};
+        };
+        
+        // Role management for existing users
+        mongo.manageUserRoles = function(user) {
+          mongo.managingUserRoles = user;
+          mongo.roleManagementForm = { database: 'admin', selectedRoles: [] };
+        };
+        
+        mongo.grantRoles = function() {
+          const database = mongo.roleManagementForm.database || 'admin';
+          const roles = mongo.roleManagementForm.selectedRoles.map(r => ({ role: r, db: database }));
+          
+          $http.patch('/api/mongo/users/' + mongo.managingUserRoles.user + '/roles', {
+            roles: roles
+          })
+          .then(response => {
+            $timeout(() => {
+              $rootScope.showToast(response.data.message, 'success');
+              // Add the new roles to the modal immediately
+              roles.forEach(role => {
+                const existingRole = mongo.managingUserRoles.roles.find(r => r.role === role.role && r.db === role.db);
+                if (!existingRole) {
+                  mongo.managingUserRoles.roles.push(role);
+                }
+              });
+              mongo.roleManagementForm.selectedRoles = [];
+              mongo.loadUsers();
+            });
+          })
+          .catch(error => {
+            $timeout(() => {
+              $rootScope.showToast(error.data?.error || 'Failed to grant roles', 'error');
+            });
+          });
+        };
+        
+        mongo.revokeRole = function(role) {
+          if (confirm('Are you sure you want to revoke role "' + role.role + '" from "' + mongo.managingUserRoles.user + '"?')) {
+            $http.delete('/api/mongo/users/' + mongo.managingUserRoles.user + '/roles', {
+              data: { roles: [role] },
+              headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => {
+              $timeout(() => {
+                $rootScope.showToast(response.data.message, 'success');
+                // Remove the role from the modal immediately
+                const roleIndex = mongo.managingUserRoles.roles.findIndex(r => r.role === role.role && r.db === role.db);
+                if (roleIndex > -1) {
+                  mongo.managingUserRoles.roles.splice(roleIndex, 1);
+                }
+                mongo.loadUsers();
+              });
+            })
+            .catch(error => {
+              $timeout(() => {
+                $rootScope.showToast(error.data?.error || 'Failed to revoke role', 'error');
+              });
+            });
+          }
+        };
+        
+        mongo.cancelManageUserRoles = function() {
+          mongo.managingUserRoles = null;
+          mongo.roleManagementForm = {};
+        };
+        
+        // Search and pagination
+        mongo.getFilteredUsers = function() {
+          if (!mongo.userSearch) return mongo.mongoUsers;
+          return mongo.mongoUsers.filter(user => 
+            user.user.toLowerCase().includes(mongo.userSearch.toLowerCase()) ||
+            mongo.getRoleNames(user.roles).toLowerCase().includes(mongo.userSearch.toLowerCase())
+          );
+        };
+        
+        mongo.getPaginatedUsers = function() {
+          const filtered = mongo.getFilteredUsers();
+          const start = (mongo.currentPage - 1) * mongo.usersPerPage;
+          return filtered.slice(start, start + mongo.usersPerPage);
+        };
+        
+        mongo.getTotalPages = function() {
+          return Math.ceil(mongo.getFilteredUsers().length / mongo.usersPerPage);
+        };
+        
+        mongo.nextPage = function() {
+          if (mongo.currentPage < mongo.getTotalPages()) {
+            mongo.currentPage++;
+          }
+        };
+        
+        mongo.prevPage = function() {
+          if (mongo.currentPage > 1) {
+            mongo.currentPage--;
+          }
+        };
+        
+        // Role selector functions
+        mongo.addSelectedRole = function() {
+          if (mongo.selectedRole && mongo.roleManagementForm.selectedRoles.indexOf(mongo.selectedRole) === -1) {
+            mongo.roleManagementForm.selectedRoles.push(mongo.selectedRole);
+            mongo.selectedRole = '';
+          }
+        };
+        
+        mongo.removeSelectedRole = function(index) {
+          mongo.roleManagementForm.selectedRoles.splice(index, 1);
+        };
+        
+        // Database management
+        mongo.loadDatabases = function() {
+          if (!mongoClient) return;
+          // This would require a new endpoint to list databases
+          // For now, we'll use common database names
+          mongo.databases = ['test', 'myapp', 'production', 'development'];
+        };
+        
+        // Role management functions
+        mongo.loadRoles = function() {
+          const database = mongo.selectedDatabase || 'admin';
+          $http.get('/api/mongo/roles', { params: { database: database } })
+            .then(response => {
+              mongo.mongoRoles = response.data.roles || [];
+              mongo.currentRoleDatabase = response.data.database || database;
+            })
+            .catch(error => {
+              mongo.mongoState.error = error.data?.error || 'Failed to load roles';
+            });
+        };
+        
+        mongo.createRole = function() {
+          let privileges;
+          try {
+            privileges = JSON.parse(mongo.roleForm.privileges);
+          } catch (e) {
+            mongo.mongoState.error = 'Invalid JSON format for privileges';
+            return;
+          }
+          
+          const database = mongo.selectedDatabase || 'admin';
+          const inheritedRoles = mongo.roleForm.inheritedRoles ? 
+            mongo.roleForm.inheritedRoles.split(',').map(r => ({ role: r.trim(), db: database })) : [];
+          
+          $http.post('/api/mongo/roles', {
+            roleName: mongo.roleForm.roleName,
+            privileges: privileges,
+            inheritedRoles: inheritedRoles,
+            database: database
+          })
+          .then(response => {
+            mongo.mongoState.success = response.data.message;
+            mongo.cancelCreateRole();
+            mongo.loadRoles();
+          })
+          .catch(error => {
+            mongo.mongoState.error = error.data?.error || 'Failed to create role';
+          });
+        };
+        
+        mongo.cancelCreateRole = function() {
+          mongo.showCreateRole = false;
+          mongo.roleForm = { roleName: '', privileges: '', inheritedRoles: '', database: 'admin' };
+        };
+        
+        mongo.deleteRole = function(roleName) {
+          if (confirm('Are you sure you want to delete role "' + roleName + '"?')) {
+            const database = mongo.selectedDatabase || 'admin';
+            $http.delete('/api/mongo/roles/' + roleName, { params: { database: database } })
+              .then(response => {
+                mongo.mongoState.success = response.data.message;
+                mongo.loadRoles();
+              })
+              .catch(error => {
+                mongo.mongoState.error = error.data?.error || 'Failed to delete role';
+              });
+          }
+        };
+        
+        // Initialize
+        mongo.checkMongoStatus();
+      });
+  </script>
+</body>
+</html>

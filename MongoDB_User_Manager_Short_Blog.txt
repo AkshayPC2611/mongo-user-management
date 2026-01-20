@@ -1,0 +1,125 @@
+# MongoDB User Management Console: Simplify Database Administration
+
+## Overview
+
+Managing MongoDB users through command-line can be complex and time-consuming. Our **MongoDB User Management Console** provides a modern web-based GUI that makes database user administration simple and accessible for teams.
+
+## What It Does
+
+This Node.js web application offers a complete solution for MongoDB user management with an intuitive interface that replaces complex command-line operations.
+
+## Key Features
+
+**🔐 Secure Access**
+- Built-in authentication system
+- Session-based security
+- Password encryption with bcrypt
+
+**🔌 Easy Connectivity**
+- Connect to local or remote MongoDB instances
+- Support for MongoDB Atlas
+- Real-time connection status
+
+**👥 User Management**
+- Create, edit, and delete MongoDB users
+- Assign and modify user roles
+- Search and filter users
+- Bulk operations support
+
+**🛡️ Role Management**
+- Visual role assignment
+- Support for all MongoDB built-in roles
+- Custom role creation
+- Database-specific permissions
+
+## Quick Start
+
+1. **Install dependencies:**
+   ```bash
+   cd website
+   npm install
+   ```
+
+2. **Start the application:**
+   ```bash
+   npm start
+   ```
+
+3. **Access the console:**
+   Open `http://localhost:3000` in your browser
+
+## How to Use
+
+### Connect to MongoDB
+- Enter your connection string (e.g., `mongodb://localhost:27017`)
+- Click "Connect" to establish connection
+- Monitor connection status in real-time
+
+### Manage Users
+- **Create**: Click "Create User", fill in details and assign roles
+- **Edit**: Modify passwords and role assignments
+- **Delete**: Remove users with confirmation dialog
+- **Search**: Find users quickly with built-in search
+
+### Common MongoDB Roles
+- `read` - Read-only access
+- `readWrite` - Read and write access
+- `dbAdmin` - Database administration
+- `userAdmin` - User management
+- `root` - Full administrative access
+
+## Connection Examples
+
+**Local MongoDB:**
+```
+mongodb://localhost:27017
+```
+
+**With Authentication:**
+```
+mongodb://username:password@server:27017
+```
+
+**MongoDB Atlas:**
+```
+mongodb+srv://user:pass@cluster.mongodb.net
+```
+
+## Benefits
+
+- **Time Saving**: Visual interface reduces setup time
+- **Error Reduction**: GUI prevents common CLI mistakes
+- **Team Friendly**: Non-technical users can manage permissions
+- **Secure**: Built-in authentication and input validation
+- **Modern**: Responsive design works on all devices
+
+## Security Features
+
+- Encrypted password storage
+- Session management
+- Input validation
+- Secure connection handling
+- Audit logging
+
+## Perfect For
+
+- **Development Teams**: Quick user setup for different environments
+- **Database Administrators**: Centralized user management
+- **Organizations**: Reduce training time with intuitive interface
+- **Projects**: Any MongoDB deployment needing user management
+
+## Technical Stack
+
+- **Backend**: Node.js, Express, MongoDB Driver
+- **Frontend**: AngularJS, Modern CSS
+- **Security**: bcrypt, Helmet, Express-session
+
+## Get Started Today
+
+The MongoDB User Management Console transforms complex database administration into simple point-and-click operations. Whether you're managing a small development database or enterprise MongoDB clusters, this tool provides the interface you need.
+
+Download and start using it today to streamline your MongoDB user management workflow.
+
+---
+
+**Ready to simplify your MongoDB administration?** Install the console and experience the difference a modern GUI makes in database management.

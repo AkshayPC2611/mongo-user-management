@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="mongoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4DB33D;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3F9A2F;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- MongoDB leaf shape -->
+  <path d="M50 10 C35 15, 25 30, 25 50 C25 70, 35 85, 50 90 C65 85, 75 70, 75 50 C75 30, 65 15, 50 10 Z" 
+        fill="url(#mongoGradient)" stroke="#2F7A1F" stroke-width="1"/>
+  
+  <!-- Inner highlight -->
+  <path d="M50 15 C40 18, 32 30, 32 48 C32 66, 40 78, 50 82 C60 78, 68 66, 68 48 C68 30, 60 18, 50 15 Z" 
+        fill="#5BC946" opacity="0.7"/>
+  
+  <!-- Central stem -->
+  <rect x="48" y="25" width="4" height="50" fill="#2F7A1F" rx="2"/>
+  
+  <!-- Database symbol -->
+  <ellipse cx="50" cy="35" rx="12" ry="4" fill="#FFFFFF" opacity="0.8"/>
+  <ellipse cx="50" cy="45" rx="10" ry="3" fill="#FFFFFF" opacity="0.6"/>
+  <ellipse cx="50" cy="55" rx="8" ry="2.5" fill="#FFFFFF" opacity="0.4"/>
+  
+  <!-- User management icon -->
+  <circle cx="42" cy="65" r="3" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="50" cy="65" r="3" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="58" cy="65" r="3" fill="#FFFFFF" opacity="0.9"/>
+</svg>
